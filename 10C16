@@ -1,0 +1,219 @@
+#include <Servo.h>
+#include <math.h>
+
+// === 핀 설정 ===
+#define PIN_SERVO 10
+#define PIN_TRIG 12
+#define PIN_ECHO 13
+
+// === 초음파 센서 설정 ===
+#define SND_VEL 346.0
+#define PULSE_DURATION 10
+#define SCALE (0.001 * 0.5 * SND_VEL)
+#define TIMEOUT 30000
+
+// === 거리 및 서보 제어 설정 ===
+#define DIST_THRESHOLD 150   // 차량 감지 기준 (mm)
+#define SERVO_UP   90        // 차단기 올라간 각도
+#define SERVO_DOWN 0         // 차단기 내려간 각도
+#define MOVING_TIME 3000     // 이동 시간(ms)
+
+// === 제어 모드 선택 ===
+// 0: Ease In-Out Sine / 1: Ease In-Out Cubic
+#define MODE 0
+
+Servo myServo;
+
+bool barrierUp = false;
+bool moving = false;
+unsigned long moveStartTime = 0;
+float startAngle = SERVO_DOWN;
+float targetAngle = SERVO_DOWN;
+
+void setup() {
+  Serial.begin(57600);
+  pinMode(PIN_TRIG, OUTPUT);
+  pinMode(PIN_ECHO, INPUT);
+  myServo.attach(PIN_SERVO);
+  myServo.write(SERVO_DOWN);
+  Serial.println("=== Smooth Parking Gate (Ease Curve Ver.) ===");
+}
+
+void loop() {
+  float dist = measureDistance();
+
+  Serial.print("Distance: ");
+  Serial.print(dist);
+  Serial.print(" mm\tBarrier: ");
+  Serial.println(barrierUp ? "UP" : "DOWN");
+
+  // 차단기 상태 제어
+  if (!moving) {
+    if (!barrierUp && dist < DIST_THRESHOLD) {
+      startSmoothMove(SERVO_DOWN, SERVO_UP);
+      barrierUp = true;
+    } 
+    else if (barrierUp && dist > DIST_THRESHOLD + 80) {
+      startSmoothMove(SERVO_UP, SERVO_DOWN);
+      barrierUp = false;
+    }
+  }
+
+  updateSmoothMove();
+  delay(50);
+}
+
+// === 초음파 거리 측정 ===
+float measureDistance() {
+  digitalWrite(PIN_TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(PIN_TRIG, HIGH);
+  delayMicroseconds(PULSE_DURATION);
+  digitalWrite(PIN_TRIG, LOW);
+
+  unsigned long duration = pulseIn(PIN_ECHO, HIGH, TIMEOUT);
+  if (duration == 0) return 9999;
+  return duration * SCALE;
+}
+
+// === 부드러운 이동 시작 ===
+void startSmoothMove(float fromAngle, float toAngle) {
+  startAngle = fromAngle;
+  targetAngle = toAngle;
+  moveStartTime = millis();
+  moving = true;
+}
+
+// === Ease In-Out 함수 (매끄럽게 움직임) ===
+float easeInOut(float t) {
+  if (MODE == 0) {
+    // Sine 기반 (부드러운 곡선)
+    return 0.5 * (1 - cos(PI * t));
+  } else {
+    // Cubic 기반 (더 매끄러운 감속)
+    return t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2;
+  }
+}
+
+// === 서보 부드러운 이동 업데이트 ===
+void updateSmoothMove() {
+  if (!moving) return;
+
+  unsigned long now = millis();
+  float elapsed = now - moveStartTime;
+  float progress = elapsed / MOVING_TIME;
+
+  if (progress >= 1.0) {
+    progress = 1.0;
+    moving = false;
+  }
+
+  float eased = easeInOut(progress);
+  float currentAngle = startAngle + (targetAngle - startAngle) * eased;
+  myServo.write(currentAngle);
+}
+
+
+
+
+
+
+#include <Servo.h>
+#include <math.h>
+
+#define PIN_SERVO 10
+#define PIN_TRIG 12
+#define PIN_ECHO 13
+
+#define SND_VEL 346.0
+#define PULSE_DURATION 10
+#define SCALE (0.001 * 0.5 * SND_VEL)
+#define TIMEOUT 30000
+
+#define DIST_THRESHOLD 150
+#define SERVO_UP   90
+#define SERVO_DOWN 0
+#define MOVING_TIME 3000
+
+Servo myServo;
+
+bool barrierUp = false;
+bool moving = false;
+unsigned long moveStartTime = 0;
+float startAngle = SERVO_DOWN;
+float targetAngle = SERVO_DOWN;
+
+void setup() {
+  Serial.begin(57600);
+  pinMode(PIN_TRIG, OUTPUT);
+  pinMode(PIN_ECHO, INPUT);
+  myServo.attach(PIN_SERVO);
+  myServo.write(SERVO_DOWN);
+  Serial.println("=== Smooth Parking Gate (Sigmoid Ver.) ===");
+}
+
+void loop() {
+  float dist = measureDistance();
+
+  Serial.print("Distance: ");
+  Serial.print(dist);
+  Serial.print(" mm\tBarrier: ");
+  Serial.println(barrierUp ? "UP" : "DOWN");
+
+  if (!moving) {
+    if (!barrierUp && dist < DIST_THRESHOLD) {
+      startSmoothMove(SERVO_DOWN, SERVO_UP);
+      barrierUp = true;
+    } 
+    else if (barrierUp && dist > DIST_THRESHOLD + 80) {
+      startSmoothMove(SERVO_UP, SERVO_DOWN);
+      barrierUp = false;
+    }
+  }
+
+  updateSmoothMove();
+  delay(50);
+}
+
+float measureDistance() {
+  digitalWrite(PIN_TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(PIN_TRIG, HIGH);
+  delayMicroseconds(PULSE_DURATION);
+  digitalWrite(PIN_TRIG, LOW);
+
+  unsigned long duration = pulseIn(PIN_ECHO, HIGH, TIMEOUT);
+  if (duration == 0) return 9999;
+  return duration * SCALE;
+}
+
+void startSmoothMove(float fromAngle, float toAngle) {
+  startAngle = fromAngle;
+  targetAngle = toAngle;
+  moveStartTime = millis();
+  moving = true;
+}
+
+// === Sigmoid 함수 (부드러운 곡선) ===
+// t: 0~1, k: 곡선의 가파름 (값이 클수록 빠르게 변화)
+float sigmoid(float t, float k = 10.0) {
+  float x = (t - 0.5) * k;
+  return 1.0 / (1.0 + exp(-x));
+}
+
+void updateSmoothMove() {
+  if (!moving) return;
+
+  unsigned long now = millis();
+  float elapsed = now - moveStartTime;
+  float progress = elapsed / MOVING_TIME;
+
+  if (progress >= 1.0) {
+    progress = 1.0;
+    moving = false;
+  }
+
+  float eased = sigmoid(progress);
+  float currentAngle = startAngle + (targetAngle - startAngle) * eased;
+  myServo.write(currentAngle);
+}
