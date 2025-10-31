@@ -1,0 +1,40 @@
+#include <Servo.h>
+
+Servo myServo;
+
+float _SERVO_SPEED;
+int servoPin = 9;
+
+void setup() {
+  myServo.attach(servoPin);
+  myServo.write(0);
+  delay(1000);
+
+  _SERVO_SPEED = 3.0;
+  moveServo(0, 180, 60);
+
+  delay(2000);
+
+  _SERVO_SPEED = 0.3;
+  moveServo(0, 90, 300);
+}
+
+void loop() {
+}
+
+void moveServo(int fromAngle, int toAngle, int totalTime) {
+  int steps = abs(toAngle - fromAngle);
+  float delayTime = (float)totalTime * 1000 / steps;
+
+  if (fromAngle < toAngle) {
+    for (int angle = fromAngle; angle <= toAngle; angle++) {
+      myServo.write(angle);
+      delay(delayTime);
+    }
+  } else {
+    for (int angle = fromAngle; angle >= toAngle; angle--) {
+      myServo.write(angle);
+      delay(delayTime);
+    }
+  }
+}
